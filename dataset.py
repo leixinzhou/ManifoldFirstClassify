@@ -22,9 +22,14 @@ class MyMNIST(datasets.MNIST):
         else:
             data_file = self.test_file
         data, targets = torch.load(os.path.join(self.processed_folder, data_file))
-        idx = torch.add(targets==digit_class[0], targets==digit_class[1])
-        self.data = data[idx]
-        self.targets = targets[idx].float() 
+        data_list = []
+        target_list = []
+        for i in range(len(digit_class)):
+            idx = targets==digit_class[i]
+            data_list.append(data[idx])
+            target_list.append(targets[idx])
+        self.data = torch.cat(data_list)
+        self.targets = torch.cat(target_list)
 
 if __name__ == "__main__":
     mydata = MyMNIST(root='~/Documents/manifold_learn/ManifoldFirstClassify/data', download=True, digit_class=[1,2],

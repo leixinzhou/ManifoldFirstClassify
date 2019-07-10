@@ -24,13 +24,13 @@ class Net(nn.Module):
         return x
 
 class AlexNet(nn.Module):
-    def __init__(self):
+    def __init__(self, nb_class):
         super(AlexNet, self).__init__()
         self.conv1 = nn.Conv2d(1, 10, kernel_size=5)
         self.conv2 = nn.Conv2d(10, 20, kernel_size=5)
         # self.conv2_drop = nn.Dropout2d()
         self.fc1 = nn.Linear(320, 50)
-        self.fc2 = nn.Linear(50, 2)
+        self.fc2 = nn.Linear(50, nb_class)
 
     def forward(self, x):
         x = F.relu(F.max_pool2d(self.conv1(x), 2))
@@ -40,4 +40,5 @@ class AlexNet(nn.Module):
         # x = F.dropout(x, training=self.training)
         x = self.fc2(x)
         # x = torch.norm(x, dim=1)
-        return F.log_softmax(x), x
+        # return F.log_softmax(x), x
+        return F.softmax(x), x
