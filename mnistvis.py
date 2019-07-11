@@ -8,15 +8,17 @@ import torch.nn.functional as F
 import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
+from loss import DoubleCELoss
 
-n_epochs = 20
+train_mode = False
+n_epochs = 50
 batch_size_train = 256
 batch_size_test = 1000
 learning_rate = 0.01
 momentum = 0.5
 log_interval = 10
-digit = [0,1,2]
-epsilon = 0.3
+digit = [0,1]
+epsilon = 1.
 random_seed = 1
 torch.backends.cudnn.enabled = False
 torch.manual_seed(random_seed)
@@ -39,7 +41,7 @@ test_loader = torch.utils.data.DataLoader(
                              ])),
   batch_size=batch_size_test, shuffle=True)
 
-network = AlexNet(nb_class=3)
+network = AlexNet(nb_class=len(digit))
 optimizer = optim.SGD(network.parameters(), lr=learning_rate,
                       momentum=momentum)
 train_losses = []
@@ -47,12 +49,13 @@ train_counter = []
 test_losses = []
 test_counter = [i*len(train_loader.dataset) for i in range(n_epochs + 1)]
 
+loss_f = DoubleCELoss()
 def train(epoch):
   network.train()
   for batch_idx, (data, target) in enumerate(train_loader):
     optimizer.zero_grad()
-    output, _ = network(data)
-    loss = F.nll_loss(output, target)
+    output = network(data)
+    loss = loss_f(*output, target)
     loss.backward()
     optimizer.step()
     if batch_idx % log_interval == 0:
@@ -62,7 +65,7 @@ def train(epoch):
       train_losses.append(loss.item())
       train_counter.append(
         (batch_idx*batch_size_train) + ((epoch-1)*len(train_loader.dataset)))
-      torch.save(network.state_dict(), 'results/model_012.pth')
+      torch.save(network.state_dict(), 'results/model_01_dce.pth')
     #   torch.save(optimizer.state_dict(), '~/Documents/manifoldlearn/ManifoldFirstClassify/results/optimizer.pth')
 
 def test():
@@ -71,9 +74,9 @@ def test():
   correct = 0
   with torch.no_grad():
     for data, target in test_loader:
-      output, _ = network(data)
-      test_loss += F.nll_loss(output, target, size_average=False).item()
-      pred = output.data.max(1, keepdim=True)[1]
+      output = network(data)
+      test_loss += loss_f(*output, target, size_average=False).item()
+      pred = output[0].data.max(1, keepdim=True)[1]
       correct += pred.eq(target.data.view_as(pred)).sum()
   test_loss /= len(test_loader.dataset)
   test_losses.append(test_loss)
@@ -92,53 +95,77 @@ def fgsm_attack(image, epsilon, data_grad):
     return perturbed_image
 
 def logits_vis(epoch):
-    network.load_state_dict(torch.load('results/model_012.pth'))
+    network.load_state_dict(torch.load('results/model_01_dce.pth'))
     network.eval()
-    logits_list_test = []
+    logits_list_test_1 = []
+    logits_list_test_2 = []
     target_list_test = []
-    logits_list_att = []
+    logits_list_att_1 = []
+    logits_list_att_2 = []
     data_list_test = []
     perturbed_data_list_test = []
     pred_list_att = []
     correct = 0
     for data, target in test_loader:
-        _, logits = network(data)
-        logits_list_test.append(logits.detach().numpy())
+        logits1, logits2 = network(data)
+        logits_list_test_1.append(logits1.detach().numpy())
+        logits_list_test_2.append(logits2.detach().numpy())
         target_list_test.append(target.detach().numpy())
         data_list_test.append(data.detach().numpy())
         data.requires_grad = True
-        output, _ = network(data)
-        loss = F.nll_loss(output, target)
+        # output, _ = network(data)
+        # loss = F.nll_loss(output, target)
+        output = network(data)
+        loss = loss_f(*output, target)
         network.zero_grad()
         loss.backward()
         data_grad = data.grad.data
         perturbed_data = fgsm_attack(data, epsilon, data_grad)
         perturbed_data_list_test.append(perturbed_data.detach().numpy())
-        _, logits = network(perturbed_data)
-        logits_list_att.append(logits.detach().numpy())
-        pred = logits.data.max(1, keepdim=True)[1]
+        logits1, logits2 = network(perturbed_data)
+        logits_list_att_1.append(logits1.detach().numpy())
+        logits_list_att_2.append(logits2.detach().numpy())
+        pred = logits1.data.max(1, keepdim=True)[1]
         pred_list_att.append(pred.detach().squeeze().numpy())
         correct += pred.eq(target.data.view_as(pred)).sum()
     print('Accuracy: {:.0f}%\n'.format(
         100. * correct / len(test_loader.dataset)))
-    logits_list_test = np.concatenate(logits_list_test)
-    logits_list_att = np.concatenate(logits_list_att)
+    logits_list_test_1 = np.concatenate(logits_list_test_1)
+    logits_list_att_1 = np.concatenate(logits_list_att_1)
+    logits_list_test_2 = np.concatenate(logits_list_test_2)
+    logits_list_att_2 = np.concatenate(logits_list_att_2)
     target_list_test = np.concatenate(target_list_test)
     pred_list_att = np.concatenate(pred_list_att)
     perturbed_data_list_test = np.concatenate(perturbed_data_list_test)
     data_list_test = np.concatenate(data_list_test)
-    
-    fig = plt.figure()
-    ax = fig.add_subplot(121, projection='3d')
+    # decision boundary
+    x_dec = np.linspace(-5,5, 50)
+
+    # ax = fig.add_subplot(121, projection='3d')
+    _, axes = plt.subplots(2,2, sharex=True, sharey=True)
+    print(type(axes))
     for i in range(len(digit)):
-        ax.scatter(*(logits_list_test[target_list_test==digit[i]][:,j] for j in range(len(digit))), 
-                        label='%d test' % digit[i], alpha=0.3)
-    ax.legend()
-    ax = fig.add_subplot(122, projection='3d')
+        axes[0].scatter(*(logits_list_test_1[target_list_test==digit[i]][:,j] for j in range(len(digit))), 
+                        label='%d test 1' % digit[i], alpha=0.3)
+        axes[0].plot(x_dec, x_dec)
+    axes[0].legend()
     for i in range(len(digit)):
-        ax.scatter(*(logits_list_att[target_list_test==digit[i]][:,j] for j in range(len(digit))), 
-                        label='%d test att' % digit[i], alpha=0.3)
-    ax.legend()
+        axes[1].scatter(*(logits_list_test_2[target_list_test==digit[i]][:,j] for j in range(len(digit))), 
+                        label='%d test 2' % digit[i], alpha=0.3)
+        axes[1].plot(x_dec, x_dec)
+    axes[1].legend()
+    # ax = fig.add_subplot(122, projection='3d')
+
+    for i in range(len(digit)):
+        axes[2].scatter(*(logits_list_att_1[target_list_test==digit[i]][:,j] for j in range(len(digit))), 
+                        label='%d test att 1' % digit[i], alpha=0.3)
+        axes[2].plot(x_dec, x_dec)
+    axes[2].legend()
+    for i in range(len(digit)):
+        axes[3].scatter(*(logits_list_att_2[target_list_test==digit[i]][:,j] for j in range(len(digit))), 
+                        label='%d test att 2' % digit[i], alpha=0.3)
+        axes[3].plot(x_dec, x_dec)
+    axes[3].legend()
     plt.show()
     
 #     _, ax = plt.subplots(1,2, sharex=True, sharey=True)
@@ -149,29 +176,31 @@ def logits_vis(epoch):
 #     ax[0].legend()
 #     ax[1].legend()
 #     plt.show()
-#     att_index = pred_list_att!=target_list_test
-#     # print(pred_list_att.shape, target_list_test.shape)
-#     fig = plt.figure()
-#     for i in range(6):
-#         plt.subplot(2,6,i+1)
-#         plt.tight_layout()
-#         plt.imshow(data_list_test[att_index][i,0,], cmap='gray', interpolation='none')
-#         plt.subplot(2,6,i+7)
-#         plt.tight_layout()
-#         plt.imshow(perturbed_data_list_test[att_index][i,0,], cmap='gray', interpolation='none')
-#         plt.xticks([])
-#         plt.yticks([])
-#     plt.show()
-# test()
-# for epoch in range(1, n_epochs + 1):
-#   train(epoch)
-#   test()
-# fig = plt.figure()
+    att_index = pred_list_att!=target_list_test
+    # print(pred_list_att.shape, target_list_test.shape)
+    fig = plt.figure()
+    for i in range(6):
+        plt.subplot(2,6,i+1)
+        plt.tight_layout()
+        plt.imshow(data_list_test[att_index][i,0,], cmap='gray', interpolation='none')
+        plt.subplot(2,6,i+7)
+        plt.tight_layout()
+        plt.imshow(perturbed_data_list_test[att_index][i,0,], cmap='gray', interpolation='none')
+        plt.xticks([])
+        plt.yticks([])
+    plt.show()
+if train_mode:
+    test()
+    for epoch in range(1, n_epochs + 1):
+      train(epoch)
+      test()
+    fig = plt.figure()
 
-# plt.plot(train_counter, train_losses, color='blue')
-# plt.scatter(test_counter, test_losses, color='red')
-# plt.legend(['Train Loss', 'Test Loss'], loc='upper right')
-# plt.xlabel('number of training examples seen')
-# plt.ylabel('negative log likelihood loss')
-# plt.show()
-logits_vis(1)
+    plt.plot(train_counter, train_losses, color='blue')
+    plt.scatter(test_counter, test_losses, color='red')
+    plt.legend(['Train Loss', 'Test Loss'], loc='upper right')
+    plt.xlabel('number of training examples seen')
+    plt.ylabel('negative log likelihood loss')
+    plt.show()
+else:
+    logits_vis(1)

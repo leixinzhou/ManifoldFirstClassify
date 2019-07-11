@@ -2,6 +2,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import torch
+import math
 
 class Net(nn.Module):
     def __init__(self):
@@ -39,6 +40,16 @@ class AlexNet(nn.Module):
         x = F.relu(self.fc1(x))
         # x = F.dropout(x, training=self.training)
         x = self.fc2(x)
+        rot_x = BatchRotLogits(x)
         # x = torch.norm(x, dim=1)
         # return F.log_softmax(x), x
-        return F.softmax(x), x
+        return x, rot_x
+def BatchRotLogits(input):
+    center = torch.mean(input, dim=0)
+    input -= center
+    rot_mat = torch.tensor([[0, 1.], [-1, 0.]])
+    input = torch.matmul(input, rot_mat)
+    return input + center
+
+# a = torch.tensor([[-1, 1.], [-2, 2], [-3, 3]])
+# print(BatchRotLogits(a))
