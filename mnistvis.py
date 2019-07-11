@@ -104,8 +104,10 @@ def logits_vis(epoch):
     logits_list_att_2 = []
     data_list_test = []
     perturbed_data_list_test = []
-    pred_list_att = []
-    correct = 0
+    pred_list_att_1 = []
+    pred_list_att_2 = []
+    correct_1 = 0
+    correct_2 = 0
     for data, target in test_loader:
         logits1, logits2 = network(data)
         logits_list_test_1.append(logits1.detach().numpy())
@@ -125,47 +127,55 @@ def logits_vis(epoch):
         logits1, logits2 = network(perturbed_data)
         logits_list_att_1.append(logits1.detach().numpy())
         logits_list_att_2.append(logits2.detach().numpy())
-        pred = logits1.data.max(1, keepdim=True)[1]
-        pred_list_att.append(pred.detach().squeeze().numpy())
-        correct += pred.eq(target.data.view_as(pred)).sum()
+        pred_1 = logits1.data.max(1, keepdim=True)[1]
+        pred_list_att_1.append(pred_1.detach().squeeze().numpy())
+        pred_2 = logits2.data.max(1, keepdim=True)[1]
+        pred_list_att_2.append(pred_2.detach().squeeze().numpy())
+        correct_1 += pred_1.eq(target.data.view_as(pred_1)).sum()
+        correct_2 += pred_2.eq(target.data.view_as(pred_2)).sum()
     print('Accuracy: {:.0f}%\n'.format(
-        100. * correct / len(test_loader.dataset)))
+        100. * correct_1 / len(test_loader.dataset)))
+    print('Accuracy: {:.0f}%\n'.format(
+        100. * correct_2 / len(test_loader.dataset)))
     logits_list_test_1 = np.concatenate(logits_list_test_1)
     logits_list_att_1 = np.concatenate(logits_list_att_1)
     logits_list_test_2 = np.concatenate(logits_list_test_2)
     logits_list_att_2 = np.concatenate(logits_list_att_2)
     target_list_test = np.concatenate(target_list_test)
-    pred_list_att = np.concatenate(pred_list_att)
+    pred_list_att = np.concatenate(pred_list_att_1)
     perturbed_data_list_test = np.concatenate(perturbed_data_list_test)
     data_list_test = np.concatenate(data_list_test)
     # decision boundary
     x_dec = np.linspace(-5,5, 50)
 
     # ax = fig.add_subplot(121, projection='3d')
-    _, axes = plt.subplots(2,2, sharex=True, sharey=True)
-    print(type(axes))
+    _, axes = plt.subplots(2,2)
     for i in range(len(digit)):
-        axes[0].scatter(*(logits_list_test_1[target_list_test==digit[i]][:,j] for j in range(len(digit))), 
+        axes[0,0].scatter(*(logits_list_test_1[target_list_test==digit[i]][:,j] for j in range(len(digit))), 
                         label='%d test 1' % digit[i], alpha=0.3)
-        axes[0].plot(x_dec, x_dec)
-    axes[0].legend()
+        axes[0,0].plot(x_dec, x_dec)
+    axes[0,0].legend()
+    axes[0,0].axis('equal')
     for i in range(len(digit)):
-        axes[1].scatter(*(logits_list_test_2[target_list_test==digit[i]][:,j] for j in range(len(digit))), 
+        axes[0,1].scatter(*(logits_list_test_2[target_list_test==digit[i]][:,j] for j in range(len(digit))), 
                         label='%d test 2' % digit[i], alpha=0.3)
-        axes[1].plot(x_dec, x_dec)
-    axes[1].legend()
+        axes[0,1].plot(x_dec, x_dec)
+    axes[0,1].legend()
+    axes[0,1].axis('equal')
     # ax = fig.add_subplot(122, projection='3d')
 
     for i in range(len(digit)):
-        axes[2].scatter(*(logits_list_att_1[target_list_test==digit[i]][:,j] for j in range(len(digit))), 
+        axes[1,0].scatter(*(logits_list_att_1[target_list_test==digit[i]][:,j] for j in range(len(digit))), 
                         label='%d test att 1' % digit[i], alpha=0.3)
-        axes[2].plot(x_dec, x_dec)
-    axes[2].legend()
+        axes[1,0].plot(x_dec, x_dec)
+    axes[1,0].legend()
+    axes[1,0].axis('equal')
     for i in range(len(digit)):
-        axes[3].scatter(*(logits_list_att_2[target_list_test==digit[i]][:,j] for j in range(len(digit))), 
+        axes[1,1].scatter(*(logits_list_att_2[target_list_test==digit[i]][:,j] for j in range(len(digit))), 
                         label='%d test att 2' % digit[i], alpha=0.3)
-        axes[3].plot(x_dec, x_dec)
-    axes[3].legend()
+        axes[1,1].plot(x_dec, x_dec)
+    axes[1,1].legend()
+    axes[1,1].axis('equal')
     plt.show()
     
 #     _, ax = plt.subplots(1,2, sharex=True, sharey=True)
@@ -188,6 +198,7 @@ def logits_vis(epoch):
         plt.imshow(perturbed_data_list_test[att_index][i,0,], cmap='gray', interpolation='none')
         plt.xticks([])
         plt.yticks([])
+    
     plt.show()
 if train_mode:
     test()
