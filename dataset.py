@@ -27,7 +27,7 @@ class MyMNIST(datasets.MNIST):
         for i in range(len(digit_class)):
             idx = targets==digit_class[i]
             data_list.append(data[idx])
-            target_list.append(targets[idx])
+            target_list.append(torch.ones_like(targets[idx])+i-1)
         self.data = torch.cat(data_list)
         self.targets = torch.cat(target_list)
 

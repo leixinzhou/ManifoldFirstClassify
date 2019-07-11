@@ -9,17 +9,19 @@ import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
 from loss import DoubleCELoss
+import math
 
-train_mode = False
+train_mode = True
 n_epochs = 50
-batch_size_train = 256
+batch_size_train = 512
 batch_size_test = 1000
 learning_rate = 0.01
 momentum = 0.5
 log_interval = 10
-digit = [0,1]
+digit = [1,7]
 epsilon = 1.
 random_seed = 1
+degree = 0.5*math.pi
 torch.backends.cudnn.enabled = False
 torch.manual_seed(random_seed)
 
@@ -41,7 +43,7 @@ test_loader = torch.utils.data.DataLoader(
                              ])),
   batch_size=batch_size_test, shuffle=True)
 
-network = AlexNet(nb_class=len(digit))
+network = AlexNet(nb_class=len(digit), degree=degree)
 optimizer = optim.SGD(network.parameters(), lr=learning_rate,
                       momentum=momentum)
 train_losses = []
@@ -65,7 +67,7 @@ def train(epoch):
       train_losses.append(loss.item())
       train_counter.append(
         (batch_idx*batch_size_train) + ((epoch-1)*len(train_loader.dataset)))
-      torch.save(network.state_dict(), 'results/model_01_dce.pth')
+      torch.save(network.state_dict(), 'results/model_%s_dce_cent.pth' % ''.join(str(e) for e in digit))
     #   torch.save(optimizer.state_dict(), '~/Documents/manifoldlearn/ManifoldFirstClassify/results/optimizer.pth')
 
 def test():
@@ -95,7 +97,7 @@ def fgsm_attack(image, epsilon, data_grad):
     return perturbed_image
 
 def logits_vis(epoch):
-    network.load_state_dict(torch.load('results/model_01_dce.pth'))
+    network.load_state_dict(torch.load('results/model_%s_dce_cent.pth' % ''.join(str(e) for e in digit)))
     network.eval()
     logits_list_test_1 = []
     logits_list_test_2 = []
@@ -151,13 +153,13 @@ def logits_vis(epoch):
     # ax = fig.add_subplot(121, projection='3d')
     _, axes = plt.subplots(2,2)
     for i in range(len(digit)):
-        axes[0,0].scatter(*(logits_list_test_1[target_list_test==digit[i]][:,j] for j in range(len(digit))), 
+        axes[0,0].scatter(*(logits_list_test_1[target_list_test==i][:,j] for j in range(len(digit))), 
                         label='%d test 1' % digit[i], alpha=0.3)
         axes[0,0].plot(x_dec, x_dec)
     axes[0,0].legend()
     axes[0,0].axis('equal')
     for i in range(len(digit)):
-        axes[0,1].scatter(*(logits_list_test_2[target_list_test==digit[i]][:,j] for j in range(len(digit))), 
+        axes[0,1].scatter(*(logits_list_test_2[target_list_test==i][:,j] for j in range(len(digit))), 
                         label='%d test 2' % digit[i], alpha=0.3)
         axes[0,1].plot(x_dec, x_dec)
     axes[0,1].legend()
@@ -165,13 +167,13 @@ def logits_vis(epoch):
     # ax = fig.add_subplot(122, projection='3d')
 
     for i in range(len(digit)):
-        axes[1,0].scatter(*(logits_list_att_1[target_list_test==digit[i]][:,j] for j in range(len(digit))), 
+        axes[1,0].scatter(*(logits_list_att_1[target_list_test==i][:,j] for j in range(len(digit))), 
                         label='%d test att 1' % digit[i], alpha=0.3)
         axes[1,0].plot(x_dec, x_dec)
     axes[1,0].legend()
     axes[1,0].axis('equal')
     for i in range(len(digit)):
-        axes[1,1].scatter(*(logits_list_att_2[target_list_test==digit[i]][:,j] for j in range(len(digit))), 
+        axes[1,1].scatter(*(logits_list_att_2[target_list_test==i][:,j] for j in range(len(digit))), 
                         label='%d test att 2' % digit[i], alpha=0.3)
         axes[1,1].plot(x_dec, x_dec)
     axes[1,1].legend()
@@ -186,16 +188,23 @@ def logits_vis(epoch):
 #     ax[0].legend()
 #     ax[1].legend()
 #     plt.show()
-    att_index = pred_list_att!=target_list_test
+    att_s_index = pred_list_att!=target_list_test
+    att_f_index = pred_list_att==target_list_test
     # print(pred_list_att.shape, target_list_test.shape)
     fig = plt.figure()
     for i in range(6):
-        plt.subplot(2,6,i+1)
+        plt.subplot(4,6,i+1)
         plt.tight_layout()
-        plt.imshow(data_list_test[att_index][i,0,], cmap='gray', interpolation='none')
-        plt.subplot(2,6,i+7)
+        plt.imshow(data_list_test[att_s_index][i,0,], cmap='gray', interpolation='none')
+        plt.subplot(4,6,i+7)
         plt.tight_layout()
-        plt.imshow(perturbed_data_list_test[att_index][i,0,], cmap='gray', interpolation='none')
+        plt.imshow(perturbed_data_list_test[att_s_index][i,0,], cmap='gray', interpolation='none')
+        plt.subplot(4,6,i+13)
+        plt.tight_layout()
+        plt.imshow(data_list_test[att_f_index][i,0,], cmap='gray', interpolation='none')
+        plt.subplot(4,6,i+19)
+        plt.tight_layout()
+        plt.imshow(perturbed_data_list_test[att_f_index][i,0,], cmap='gray', interpolation='none')
         plt.xticks([])
         plt.yticks([])
     
