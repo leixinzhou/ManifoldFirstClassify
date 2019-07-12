@@ -1,8 +1,9 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
+import os
 
-def visualize_logits(input, target, logits, digits):
+def visualize_logits(input, target, logits, digits, hps):
     """
     The input should be tuple of numpy array and the target should be numpy array.
     logits should be ((logits1, logits2,...), (perturb1, perturb2,...))
@@ -28,9 +29,11 @@ def visualize_logits(input, target, logits, digits):
             # axes[i,j].plot(x_dec, x_dec)
             axes[i,j].legend()
             axes[i,j].axis('equal')
-    plt.show()
+    plt.savefig(os.path.join(hps['save_dir'], 'att_logits_epsilon_%.2f_degree_%.2f.png' % (hps['epsilon'],\
+                    hps['degree'])), bbox_inches='tight')
+    plt.close()
 
-def visualize_imgs(input, perturb, pred, target):
+def visualize_imgs(input, perturb, pred, target, hps):
     att_s_index = pred != target
     att_f_index = pred == target
     # print(pred_list_att.shape, target_list_test.shape)
@@ -50,5 +53,7 @@ def visualize_imgs(input, perturb, pred, target):
         plt.imshow(perturb[att_f_index][i,0,], cmap='gray', interpolation='none')
         plt.xticks([])
         plt.yticks([])
+    plt.savefig(os.path.join(hps['save_dir'], 'att_imgs_epsilon_%.2f_degree_%.2f.png' % (hps['epsilon'],\
+                    hps['degree'])), bbox_inches='tight')
+    plt.close()
     
-    plt.show()

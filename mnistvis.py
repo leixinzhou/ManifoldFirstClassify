@@ -97,7 +97,7 @@ def learn(network, loss_f, hps):
   plt.plot(val_acc_list, label='val acc')
   plt.legend()
   plt.show()
-  plt.savefig(os.path.join(hps['save_dir'], 'tr_val.png'), bbox_inches='tight')
+  plt.savefig(os.path.join(hps['save_dir'], 'tr_val_degree_%.2f.png' %  hps['degree']), bbox_inches='tight')
   plt.close()
 
 
@@ -132,15 +132,15 @@ def logits_vis(network, loss_f, hps):
       network.zero_grad()
       loss.backward()
       data_grad = data.grad.data
-      perturbed_data = fgsm_attack(data, epsilon, data_grad)
+      perturbed_data = fgsm_attack(data, hps['epsilon'], data_grad)
       perturbed_data_list_test.append(perturbed_data.detach().numpy())
       logits = network(perturbed_data)
       logits_list_att.append(logits.detach().numpy())
       pred = logits[:, 0, :].data.max(1, keepdim=True)[1]
       pred_list_att.append(pred.detach().squeeze().numpy())
-      correct += pred.eq(target.data.view_as(pred)).sum()
-  print('Accuracy: {:.0f}%\n'.format(
-      100. * correct / len(test_loader.dataset)))
+      correct += pred.eq(target.data.view_as(pred)).sum().float()
+  acc = correct / len(test_loader.dataset)
+  print('Accuracy: %.3e' % acc)
   # print('Accuracy: {:.0f}%\n'.format(
     #     100. * correct_2 / len(test_loader.dataset)))
   logits_list_test = np.concatenate(logits_list_test, axis=0)
@@ -149,8 +149,10 @@ def logits_vis(network, loss_f, hps):
   pred_list_att = np.concatenate(pred_list_att, axis=0)
   perturbed_data_list_test = np.concatenate(perturbed_data_list_test, axis=0)
   data_list_test = np.concatenate(data_list_test, axis=0)
-  visualize_logits(data_list_test, target_list_test, (logits_list_test, logits_list_att), digits=digit)
-  visualize_imgs(data_list_test, perturbed_data_list_test, pred_list_att, target_list_test)
+  visualize_logits(data_list_test, target_list_test, (logits_list_test, logits_list_att), digits=hps['digit'],\
+                      hps=hps)
+  visualize_imgs(data_list_test, perturbed_data_list_test, pred_list_att, target_list_test,\
+                      hps=hps)
     
 
 def main():
@@ -167,7 +169,8 @@ def main():
   
   torch.backends.cudnn.enabled = False
   torch.manual_seed(hps['random_seed'])
-  network = AlexNet(nb_class=len(hps['digit']), degree=hps['degree'])
+  degree = math.pi*hps['degree']
+  network = AlexNet(nb_class=len(hps['digit']), degree=degree)
   loss_f = DoubleCELoss()
   
   if hps['train_mode']:
