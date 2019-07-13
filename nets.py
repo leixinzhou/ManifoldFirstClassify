@@ -33,6 +33,7 @@ def BatchRotLogits(input, degree):
     input -= center
     rot_mat = torch.tensor([[math.cos(degree), math.sin(degree)], [-math.sin(degree), math.cos(degree)]])
     input = torch.matmul(input, rot_mat)
+    # return input
     return input + center
 
 # a = torch.tensor([[-1, 1.], [-2, 2], [-3, 3]])

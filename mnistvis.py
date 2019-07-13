@@ -87,7 +87,8 @@ def learn(network, loss_f, hps):
     print("Epoch: " + str(epoch) + " val_loss: " + "%.3e" % epoch_val_loss + " val_acc: " + "%.3e" % epoch_val_acc)
     if epoch_val_loss < best_loss:
       best_loss = epoch_val_loss
-      torch.save(network.state_dict(), os.path.join(hps['save_dir'], 'model_%s.pth' % hps['degree']))
+      torch.save(network.state_dict(), os.path.join(hps['save_dir'], 'model_degree_%s_epoch_%d_.pth' % \
+          (hps['degree'], hps['n_epochs'])))
       #   torch.save(optimizer.state_dict(), '~/Documents/manifoldlearn/ManifoldFirstClassify/results/optimizer.pth')
 
   fig = plt.figure()
@@ -96,7 +97,7 @@ def learn(network, loss_f, hps):
   plt.plot(val_loss_list, label='val loss')
   plt.plot(val_acc_list, label='val acc')
   plt.legend()
-  plt.show()
+  # plt.show()
   plt.savefig(os.path.join(hps['save_dir'], 'tr_val_degree_%.2f.png' %  hps['degree']), bbox_inches='tight')
   plt.close()
 
@@ -110,7 +111,8 @@ def logits_vis(network, loss_f, hps):
                                  (0.1307,), (0.3081,))
                              ])), batch_size=hps['batch_size_test'], shuffle=True)
 
-  network.load_state_dict(torch.load(os.path.join(hps['save_dir'], 'model_%s.pth' % hps['degree'])))
+  network.load_state_dict(torch.load(os.path.join(hps['save_dir'], 'model_degree_%s_epoch_%d_.pth' % \
+          (hps['degree'], hps['n_epochs']))))
   network.eval()
   logits_list_test = []
   target_list_test = []
@@ -118,12 +120,15 @@ def logits_vis(network, loss_f, hps):
   data_list_test = []
   perturbed_data_list_test = []
   pred_list_att = []
+  pred_list_test = []
   correct = 0
   for data, target in test_loader:
       logits = network(data)
       logits_list_test.append(logits.detach().numpy())
       target_list_test.append(target.detach().numpy())
       data_list_test.append(data.detach().numpy())
+      pred = logits[:, 0, :].data.max(1, keepdim=True)[1]
+      pred_list_test.append(pred.detach().squeeze().numpy())
       data.requires_grad = True
       # output, _ = network(data)
       # loss = F.nll_loss(output, target)
@@ -147,11 +152,12 @@ def logits_vis(network, loss_f, hps):
   logits_list_att = np.concatenate(logits_list_att, axis=0)
   target_list_test = np.concatenate(target_list_test, axis=0)
   pred_list_att = np.concatenate(pred_list_att, axis=0)
+  pred_list_test = np.concatenate(pred_list_test, axis=0)
   perturbed_data_list_test = np.concatenate(perturbed_data_list_test, axis=0)
   data_list_test = np.concatenate(data_list_test, axis=0)
   visualize_logits(data_list_test, target_list_test, (logits_list_test, logits_list_att), digits=hps['digit'],\
                       hps=hps)
-  visualize_imgs(data_list_test, perturbed_data_list_test, pred_list_att, target_list_test,\
+  visualize_imgs(data_list_test, perturbed_data_list_test, pred_list_test, pred_list_att, target_list_test,\
                       hps=hps)
     
 

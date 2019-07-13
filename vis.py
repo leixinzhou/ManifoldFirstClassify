@@ -29,31 +29,31 @@ def visualize_logits(input, target, logits, digits, hps):
             # axes[i,j].plot(x_dec, x_dec)
             axes[i,j].legend()
             axes[i,j].axis('equal')
-    plt.savefig(os.path.join(hps['save_dir'], 'att_logits_epsilon_%.2f_degree_%.2f.png' % (hps['epsilon'],\
-                    hps['degree'])), bbox_inches='tight')
+    plt.savefig(os.path.join(hps['save_dir'], 'att_logits_epsilon_%.2f_degree_%.2f_epoch_%d.png' % (hps['epsilon'],\
+                    hps['degree'], hps['n_epochs'])), bbox_inches='tight')
     plt.close()
 
-def visualize_imgs(input, perturb, pred, target, hps):
-    att_s_index = pred != target
-    att_f_index = pred == target
+def visualize_imgs(input, perturb, pred, pred_att, target, hps):
+    att_s_index = np.logical_and(pred == target, pred_att!=target)
+    # att_f_index = pred == target
     # print(pred_list_att.shape, target_list_test.shape)
     fig = plt.figure()
     for i in range(6):
-        plt.subplot(4,6,i+1)
-        plt.tight_layout()
-        plt.imshow(input[att_s_index][i,0,], cmap='gray', interpolation='none')
-        plt.subplot(4,6,i+7)
+        plt.subplot(1,6,i+1)
         plt.tight_layout()
         plt.imshow(perturb[att_s_index][i,0,], cmap='gray', interpolation='none')
-        plt.subplot(4,6,i+13)
-        plt.tight_layout()
-        plt.imshow(input[att_f_index][i,0,], cmap='gray', interpolation='none')
-        plt.subplot(4,6,i+19)
-        plt.tight_layout()
-        plt.imshow(perturb[att_f_index][i,0,], cmap='gray', interpolation='none')
+        # plt.subplot(4,6,i+7)
+        # plt.tight_layout()
+        # plt.imshow(perturb[att_s_index][i,0,], cmap='gray', interpolation='none')
+        # plt.subplot(4,6,i+13)
+        # plt.tight_layout()
+        # plt.imshow(input[att_f_index][i,0,], cmap='gray', interpolation='none')
+        # plt.subplot(4,6,i+19)
+        # plt.tight_layout()
+        # plt.imshow(perturb[att_f_index][i,0,], cmap='gray', interpolation='none')
         plt.xticks([])
         plt.yticks([])
-    plt.savefig(os.path.join(hps['save_dir'], 'att_imgs_epsilon_%.2f_degree_%.2f.png' % (hps['epsilon'],\
-                    hps['degree'])), bbox_inches='tight')
+    plt.savefig(os.path.join(hps['save_dir'], 'att_imgs_epsilon_%.2f_degree_%.2f_epoch_%d.png' % (hps['epsilon'],\
+                    hps['degree'], hps['n_epochs'])), bbox_inches='tight')
     plt.close()
     

@@ -43,6 +43,7 @@ if __name__ == "__main__":
                                                 )
     examples = enumerate(train_loader)
     batch_idx, (example_data, example_targets) = next(examples)
+    print(example_data[0][0].mean())
     print(type(example_targets[0]))
     import matplotlib.pyplot as plt
 
